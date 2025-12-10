@@ -1,101 +1,246 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import { EnhancedSearchBar } from "@/components/EnhancedSearchBar";
+import { UnifiedProjectCard } from "@/components/UnifiedProjectCard";
+import { SourceDropdown } from "@/components/SourceDropdown";
+import { searchAllSources, UnifiedProject, SourceType } from "@/lib/sources";
+import { toast } from "sonner";
+import { Sparkles, Brain, Zap, Shield, Layers, TrendingUp, Search } from "lucide-react";
+
+export default function EnhancedHome() {
+  const [projects, setProjects] = useState<UnifiedProject[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [selectedSources, setSelectedSources] = useState<SourceType[]>([
+    "github",
+    "huggingface",
+    "gitlab",
+    "npm",
+  ]);
+  const [showingTrending, setShowingTrending] = useState(true);
+
+  // Load trending projects on mount
+  useEffect(() => {
+    loadTrendingProjects();
+  }, []);
+
+  const loadTrendingProjects = async () => {
+    setIsLoading(true);
+    setShowingTrending(true);
+    
+    try {
+      const allResults: UnifiedProject[] = [];
+      
+      // Define trending searches by source for better variety
+      const trendingBySource = {
+        github: [
+          "react", "vue", "nextjs", "typescript", "python", 
+          "rust", "go", "docker", "kubernetes", "vscode"
+        ],
+        huggingface: [
+          "llm", "text-generation", "image-generation", "transformers"
+        ],
+        npm: [
+          "react", "vue", "express", "next", "typescript"
+        ],
+        pypi: [
+          "django", "fastapi", "pandas", "numpy", "tensorflow"
+        ],
+        gitlab: [
+          "ci-cd", "devops", "kubernetes"
+        ]
+      };
+      
+      // Fetch from each source in parallel with shallow search (deepSearch=false)
+      const promises: Promise<UnifiedProject[]>[] = [];
+      
+      // GitHub - 30 projects
+      trendingBySource.github.forEach(query => {
+        promises.push(
+          searchAllSources(query, ["github"], false) // Shallow search for trending
+            .then(results => results.slice(0, 3))
+            .catch(() => [])
+        );
+      });
+      
+      // Hugging Face - 12 projects
+      trendingBySource.huggingface.forEach(query => {
+        promises.push(
+          searchAllSources(query, ["huggingface"], false)
+            .then(results => results.slice(0, 3))
+            .catch(() => [])
+        );
+      });
+      
+      // npm - 10 projects
+      trendingBySource.npm.forEach(query => {
+        promises.push(
+          searchAllSources(query, ["npm"], false)
+            .then(results => results.slice(0, 2))
+            .catch(() => [])
+        );
+      });
+      
+      // PyPI - 10 projects
+      trendingBySource.pypi.forEach(query => {
+        promises.push(
+          searchAllSources(query, ["pypi"], false)
+            .then(results => results.slice(0, 2))
+            .catch(() => [])
+        );
+      });
+      
+      // GitLab - 6 projects
+      trendingBySource.gitlab.forEach(query => {
+        promises.push(
+          searchAllSources(query, ["gitlab"], false)
+            .then(results => results.slice(0, 2))
+            .catch(() => [])
+        );
+      });
+      
+      const results = await Promise.all(promises);
+      results.forEach(r => allResults.push(...r));
+      
+      // Remove duplicates and shuffle for variety
+      const uniqueResults = Array.from(
+        new Map(allResults.map(item => [item.id, item])).values()
+      );
+      
+      // Shuffle to mix sources
+      const shuffled = uniqueResults.sort(() => Math.random() - 0.5);
+      
+      // Take top 60
+      const finalResults = shuffled.slice(0, 60);
+      
+      setProjects(finalResults);
+      setTotalCount(finalResults.length);
+    } catch (error) {
+      console.error("Error loading trending projects:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) return;
+    
+    setIsLoading(true);
+    setHasSearched(true);
+    setShowingTrending(false);
+
+    try {
+      // Use deep search (true) for user queries to find the best results
+      const results = await searchAllSources(query, selectedSources, true);
+      setProjects(results);
+      setTotalCount(results.length);
+      
+      if (results.length === 0) {
+        toast.info("No results found. Try different keywords or sources.");
+      } else {
+        toast.success(`Found ${results.length} projects across ${selectedSources.length} sources!`);
+      }
+    } catch (error) {
+      toast.error("Failed to search. Please try again.", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSourceToggle = (source: SourceType) => {
+    setSelectedSources((prev) =>
+      prev.includes(source)
+        ? prev.filter((s) => s !== source)
+        : [...prev, source]
+    );
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="relative border-b border-slate-800/50">
+        <div className="relative pt-16 pb-8 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto space-y-6">
+            {/* Headline */}
+            <div className="text-center space-y-3">
+              <h1 className="text-3xl sm:text-4xl font-medium tracking-tight text-slate-100">
+                Discover Open Source Projects
+              </h1>
+              <p className="text-sm text-slate-500 max-w-xl mx-auto">
+                Search across multiple platforms with AI-powered insights
+              </p>
+            </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {/* Search Interface */}
+            <div className="max-w-3xl mx-auto space-y-3">
+              <EnhancedSearchBar onSearch={handleSearch} isLoading={isLoading} />
+              <div className="flex items-center justify-center gap-3">
+                <SourceDropdown
+                  selectedSources={selectedSources}
+                  onSourceToggle={handleSourceToggle}
+                />
+                <span className="text-xs text-slate-600">•</span>
+                <span className="text-xs text-slate-600">{totalCount} projects loaded</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* Results Section */}
+      <section className="px-4 sm:px-6 lg:px-8 pb-24 pt-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Results header */}
+          {!isLoading && projects.length > 0 && (
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-medium text-slate-400">
+                  {showingTrending ? "Trending" : "Results"}
+                </h2>
+                <span className="text-xs text-slate-600">
+                  {totalCount.toLocaleString()} {totalCount === 1 ? "project" : "projects"}
+                </span>
+              </div>
+              {showingTrending && (
+                <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>Updated daily</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Results grid */}
+          {isLoading ? (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-56 rounded-lg bg-slate-900/30 animate-pulse border border-slate-800/50"
+                />
+              ))}
+            </div>
+          ) : projects.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {projects.map((project) => (
+                <UnifiedProjectCard key={project.id} project={project} />
+              ))}
+            </div>
+          ) : hasSearched ? (
+            <div className="text-center py-16">
+              <Search className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">No results found</p>
+              <p className="text-xs text-slate-600 mt-1">Try different keywords or sources</p>
+            </div>
+          ) : null}
+        </div>
+      </section>
     </div>
   );
 }
+
