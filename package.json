@@ -1,7 +1,31 @@
 {
   "name": "gitseeker",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "AI-Powered Multi-Source Project Discovery Platform - Search across GitHub, Hugging Face, npm, PyPI, and GitLab with intelligent AI insights",
+  "author": "PrivateVictories-Main",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PrivateVictories-Main/gitseeker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PrivateVictories-Main/gitseeker/issues"
+  },
+  "homepage": "https://github.com/PrivateVictories-Main/gitseeker#readme",
+  "keywords": [
+    "ai",
+    "search",
+    "github",
+    "huggingface",
+    "npm",
+    "pypi",
+    "gitlab",
+    "open-source",
+    "discovery",
+    "webllm",
+    "nextjs",
+    "typescript"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
